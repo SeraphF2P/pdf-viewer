@@ -2,36 +2,50 @@ name: pdf viewer
 
 on:
   push:
-    branches: [main]
-  workflow_dispatch: # Enable manual triggers
+    branches:
+      - main
+  pull_request:
 
 jobs:
-  build-macos:
+  build:
     runs-on: macos-latest
-    timeout-minutes: 30
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18  # Use the Node.js version required by your project
 
       - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo
+            ~/.npm
+            node_modules
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Install Dependencies
         run: |
-          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          npm install
+          npm run build
 
-      - name: Install Tauri dependencies
-        run: |
-          brew install pkg-config
-          npm install -g @tauri-apps/cli
+      - name: Build Tauri App
+        run: npm run tauri build
 
-      - name: Install Node.js dependencies
-        run: npm install
-
-      - name: Build Tauri app (Universal Binary)
-        run: npm run tauri build -- --target universal-apple-darwin
-
-      - name: Upload artifact
+      - name: Upload Build Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: macos-app
-          path: src-tauri/target/release/bundle/
+          name: tauri-macos-app
+          path: src-tauri/target/release/bundle/macos/*.app

@@ -1,0 +1,37 @@
+name: pdf viewer
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Enable manual triggers
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install Tauri dependencies
+        run: |
+          brew install pkg-config
+          npm install -g @tauri-apps/cli
+
+      - name: Install Node.js dependencies
+        run: npm install
+
+      - name: Build Tauri app (Universal Binary)
+        run: npm run tauri build -- --target universal-apple-darwin
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: macos-app
+          path: src-tauri/target/release/bundle/
